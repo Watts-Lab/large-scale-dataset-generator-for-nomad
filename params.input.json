@@ -1,0 +1,42 @@
+[
+  {
+    "properties": { "numOfAgents": 182, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_182"
+  },
+  {
+    "properties": { "numOfAgents": 1000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_1000"
+  },
+  {
+    "properties": { "numOfAgents": 2000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_2000"
+  },
+  {
+    "properties": { "numOfAgents": 3000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_3000"
+  },
+  {
+    "properties": { "numOfAgents": 4000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_4000"
+  },
+  {
+    "properties": { "numOfAgents": 5000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_5000"
+  },
+  {
+    "properties": { "numOfAgents": 6000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_6000"
+  },
+  {
+    "properties": { "numOfAgents": 7000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_7000"
+  },
+  {
+    "properties": { "numOfAgents": 8000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_8000"
+  },
+  {
+    "properties": { "numOfAgents": 9000, "maps": "../../../pol/maps/atl/map/" },
+    "id": "atlanta_data_9000"
+  }
+]
