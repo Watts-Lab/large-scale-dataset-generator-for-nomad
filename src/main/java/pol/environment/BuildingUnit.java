@@ -53,13 +53,13 @@ public abstract class BuildingUnit implements java.io.Serializable {
 	private int blockGroupId;
 	@Characteristics
 	private int censusTractId;
-	@State
+	@Skip
 	private int numOfAgents;
-	@State
+	@Skip
 	private int numOfVisits = 0;
-	@State
+	@Skip
 	transient private Set<Long> agentSet;
-	@State
+	@Skip
 	private Map<Long, Meeting> meetingMap;
 	@Skip
 	private long meetingIdIndex;

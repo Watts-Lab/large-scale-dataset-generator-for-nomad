@@ -2,7 +2,7 @@ package pol;
 
 import pol.environment.Classroom;
 import pol.log.Characteristics;
-import pol.log.State;
+import pol.log.Skip;
 
 /**
  * General description_________________________________________________________
@@ -17,7 +17,7 @@ public class Family implements java.io.Serializable {
 	private int numberOfPeople;
 	@Characteristics
 	private boolean haveKids;
-	@State
+	@Skip
 	private Classroom classroom;
 
 	public Family(int numberOfPeople, boolean haveKids) {

@@ -3,7 +3,6 @@ package pol;
 import org.joda.time.LocalTime;
 
 import pol.log.Skip;
-import pol.log.State;
 import pol.utils.DateTimeUtil;
 
 /**
@@ -23,7 +22,7 @@ public class SleepNeed implements Need, java.io.Serializable {
 	private LocalTime sleepStartTime;
 	@Skip
 	private int sleepLengthInMinutes;
-	@State
+	@Skip
 	private SleepStatus status;
 
 	public SleepNeed(Person agent) {

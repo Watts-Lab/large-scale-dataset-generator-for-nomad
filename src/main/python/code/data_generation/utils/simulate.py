@@ -191,7 +191,7 @@ def get_layer(param):
 
 def get_run_command( end_time=get_end_time(),jar_path=f"{get_jar_path()}"):
     condition = f'if [ -f run.unlock ]; then \n echo "Unlock file exists, exiting" \n else\n'
-    string = f"java -Dlog4j2.configurationFactory=edu.emory.amiri.life.log.CustomConfigurationFactory -Dlog.rootDirectory=logs -Dsimulation.test=c01 -jar {jar_path} -configuration modified.properties -until {end_time} \n fi"
+    string = f"java -Dlog4j2.configurationFactory=pol.log.CustomConfigurationFactory -Dlog.rootDirectory=logs -Dsimulation.test=c02 -jar {jar_path} -configuration modified.properties -until {end_time} \n fi"
     command = f"{condition} \n {string}"
     return command
 

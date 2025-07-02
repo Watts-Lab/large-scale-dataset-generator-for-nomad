@@ -17,7 +17,6 @@ import org.joda.time.LocalDateTime;
 import pol.environment.Pub;
 import pol.environment.Travel;
 import pol.log.Skip;
-import pol.log.State;
 import pol.utils.CollectionUtil;
 import pol.utils.MersenneTwisterWrapper;
 import pol.utils.NetworkUtil;
@@ -39,20 +38,20 @@ public class LoveNeed implements Need, java.io.Serializable {
 
 	@Skip
 	private Person agent;
-	@State
+	@Skip
 	private Long meetingId = null;
 	/**
 	 * this variable is used to represent the status of the love need based on
 	 * number of friends
 	 */
-	@State
+	@Skip
 	private LoveNeedStatus status;
 	/**
 	 * this variable is used to represent the status of the love need based
 	 * temporal friendship-making and breaking-up events.
 	 */
 	//// Sociality Status
-	@State
+	@Skip
 	private double socialStatus;
 	@Skip
 	private Queue<Double> socialStatusQueue;
@@ -60,7 +59,7 @@ public class LoveNeed implements Need, java.io.Serializable {
 	 * this variable is used to represent the status of the love need based
 	 * temporal friendship-making and breaking-up events.
 	 */
-	@State
+	@Skip
 	private double socialHappiness;
 
 	public LoveNeed(Person agent) {

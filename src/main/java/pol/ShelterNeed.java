@@ -15,7 +15,6 @@ import pol.environment.BuildingUnit;
 import pol.environment.Classroom;
 import pol.environment.SpatialNetwork;
 import pol.log.Skip;
-import pol.log.State;
 import pol.utils.CollectionUtil;
 import pol.utils.GeoUtils;
 import sim.util.geo.MasonGeometry;
@@ -33,7 +32,7 @@ public class ShelterNeed implements Need, java.io.Serializable {
 	@Skip
 	private Person agent;
 
-	@State
+	@Skip
 	private Apartment currentShelter;
 	@Skip
 	private LocalDateTime homelessSince;

@@ -13,7 +13,6 @@ import pol.environment.Job;
 import pol.environment.SpatialNetwork;
 import pol.environment.Travel;
 import pol.log.Skip;
-import pol.log.State;
 import pol.utils.ChangeApartmentInstruction;
 import pol.utils.ChangeJobInstruction;
 import pol.utils.CollectionUtil;
@@ -32,20 +31,20 @@ public class FinancialSafetyNeed implements Need, java.io.Serializable {
 	private static final long serialVersionUID = 7737077737722625990L;
 	@Skip
 	private Person agent;
-	@State
+	@Skip
 	private double availableBalance;
-	@State
+	@Skip
 	private Job job;
 	@Skip
 	private LocalDateTime workingInThisJobSince;
 	@Skip
 	private List<Charge> currentCharges;
 
-	@State
+	@Skip
 	private FinancialStatus status = FinancialStatus.Unknown;
-	@State
+	@Skip
 	private double dailyFoodBudget;
-	@State
+	@Skip
 	private double weeklyExtraBudget;
 
 	public FinancialSafetyNeed(Person agent) {

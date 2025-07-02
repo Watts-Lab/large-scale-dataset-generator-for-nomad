@@ -62,14 +62,14 @@ public class Person implements Steppable {
 
 	// basic properties
 	private long agentId;
-	@State
+	@Skip
 	private int neighborhoodId;
 
-	@State
+	@Skip
 	private double age;
-	@State
+	@Skip
 	private PersonMode currentMode;
-	@State
+	@Skip
 	private BuildingUnit currentUnit;
 
 	private Family family;
@@ -79,7 +79,7 @@ public class Person implements Steppable {
 
 	@Characteristics
 	private AgentInterest interest;
-	@State
+	@Skip
 	private LifeStatus lifeStatus;
 
 	// strategic properties
@@ -96,17 +96,17 @@ public class Person implements Steppable {
 	// level 2
 	private FinancialSafetyNeed financialSafetyNeed;
 	// level 3
-	@State
+	@Skip
 	private LoveNeed loveNeed;
 
 	// agent's daily activity-related variables
 	@Skip
 	private AgentMobility mobility;
 
-	@State
+	@Skip
 	private VisitReason visitReason;
 
-	@State
+	@Skip
 	private DailyPlan todaysPlan;
 
 	// this hashmap keeps agent's daily plans for today and tomorrow

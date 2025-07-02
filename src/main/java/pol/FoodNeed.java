@@ -12,7 +12,6 @@ import pol.environment.Travel;
 import pol.log.Characteristics;
 import pol.log.ExtLogger;
 import pol.log.Skip;
-import pol.log.State;
 
 /**
  * General description_________________________________________________________
@@ -26,11 +25,11 @@ public class FoodNeed implements Need, java.io.Serializable {
 	private static final long serialVersionUID = 1247800092072951966L;
 	private static double MAX_FULLNESS = 100;
 
-	@State
+	@Skip
 	private double fullness;
-	@State
+	@Skip
 	private FoodNeedStatus status;
-	@State
+	@Skip
 	private int numberOfMealsTaken;
 	@Characteristics
 	private double fullnessReachTimeInMinutes;

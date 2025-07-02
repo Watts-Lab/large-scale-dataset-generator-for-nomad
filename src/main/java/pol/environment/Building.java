@@ -6,7 +6,7 @@ import java.util.List;
 import pol.WorldModel;
 import pol.log.Characteristics;
 import pol.log.Referenceable;
-import pol.log.State;
+import pol.log.Skip;
 import sim.util.geo.MasonGeometry;
 
 /**
@@ -45,7 +45,7 @@ public class Building implements java.io.Serializable {
 	private int blockGroupId;
 	@Characteristics
 	private int censusTractId;
-	@State
+	@Skip
 	private boolean usable = true;
 
 	public Building(WorldModel world, long id) {
