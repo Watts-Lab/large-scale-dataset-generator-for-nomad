@@ -1,0 +1,11 @@
+[
+  {
+    "properties": {
+      "numOfAgents": 1000,
+      "oneStepTime": 1,
+      "maps": "../../../pol/maps/atl/map/",
+      "seed": 1
+    },
+    "id": "atl_1000_1_sec"
+  }
+]

@@ -1,0 +1,1 @@
+[{"properties": {"numOfAgents": 1000, "oneStepTime": 1, "maps": "../../../pol/maps/bjng/map/", "seed": 1}, "id": "atl_1000_1_sec", "config": {"folder": "atl_1000_1_sec", "layer": "1", "run_sh_path": "/home/amiri/Research/onspatial/large-scale-dataset-generator/src/main/python/city/1/atl_1000_1_sec/run.sh"}, "status": "running", "score": 0}]
