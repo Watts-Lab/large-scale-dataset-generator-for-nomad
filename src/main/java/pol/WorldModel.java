@@ -1,5 +1,6 @@
 package pol;
 
+import java.awt.GraphicsEnvironment;
 import java.awt.Color;
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,6 +27,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.commons.collections4.keyvalue.MultiKey;
 import org.apache.commons.collections4.map.MultiKeyMap;
 import org.apache.commons.math3.random.EmpiricalDistribution;
@@ -186,6 +189,7 @@ public class WorldModel extends SimState {
 	// Graphs for social network visualization
 	private transient Graph visualFriendFamilyGraph;
 	private transient Graph visualWorkGraph;
+    private boolean guiEnabled = true;
 	// Viewer
 	private transient Viewer friendFamilyViewer;
 	// Files to store the social graph
@@ -213,8 +217,8 @@ public class WorldModel extends SimState {
 		spatialNetwork.loadMapLayers(params.maps, "walkways.shp",
 				"buildings.shp", "buildingUnits.shp");
 		initPlaces();
+        initVisualGraph();
 		GeoUtils.alignMBRs(spatialNetwork.getAllLayers());
-		initVisualGraph();
 		reservedLog = new ReservedLogChannels(this);
 		startDataCollectionForQoIs();
 	}
@@ -276,8 +280,12 @@ public class WorldModel extends SimState {
 		super.finish();
 		try {
 			if (visualFriendFamilyGraph != null && visualWorkGraph != null) {
-				friendFamilyGraphSink.end();
-				workGraphSink.end();
+                if (friendFamilyGraphSink != null) {
+    				friendFamilyGraphSink.end();
+                }
+                if (workGraphSink != null) {
+    				workGraphSink.end();
+                }
 				logger.info("Social network graph saved.");
 			}
 		} catch (Exception e) {
@@ -588,6 +596,13 @@ public class WorldModel extends SimState {
 	}
 
 	private void initVisualGraph() {
+        if (GraphicsEnvironment.isHeadless() || !Boolean.parseBoolean(System.getProperty("pol.gui", "false"))) {
+            System.out.println("[INFO] GUI disabled (headless or pol.gui=false) — skipping GraphStream display()");
+            visualFriendFamilyGraph = new org.graphstream.graph.implementations.DefaultGraph("FriendFamilyHeadless");
+            visualWorkGraph = new org.graphstream.graph.implementations.DefaultGraph("WorkHeadless");
+            return;
+        }
+        
 		// change graph directory
 		String friendFamilyPath = ReservedLogChannels
 				.fullDirectory(ReservedLogChannels.DEFAULT_DIRECTORY + friendFamilyGraphSinkPath);
@@ -596,7 +611,8 @@ public class WorldModel extends SimState {
 		URL url = WorldModel.class
 				.getResource("/stylesheet/NodeColoringBasedOnInterest.css");
 		String css = "url(" + url.toString() + ")";
-		// Friend Family Graph
+
+        // Friend Family Graph
 		visualFriendFamilyGraph = new SingleGraph(
 				"Social Network: Friend Family");
 		visualFriendFamilyGraph.addAttribute("ui.stylesheet", css);
@@ -610,7 +626,7 @@ public class WorldModel extends SimState {
 			e.printStackTrace();
 		}
 
-		// Work Graph
+        // Work Graph
 		visualWorkGraph = new SingleGraph("Social Network: Work");
 		visualWorkGraph.addAttribute("ui.stylesheet", css);
 		if (params.isWorkGraphVisible)
@@ -933,13 +949,17 @@ public class WorldModel extends SimState {
 		friendFamilyNetwork.addNode(agent.getAgentId());
 		workNetwork.addNode(agent.getAgentId());
 
-		if (visualFriendFamilyGraph.getNode(String.valueOf(agentId)) == null)
-			visualFriendFamilyGraph.addNode(String.valueOf(agent.getAgentId()));
-		if (visualWorkGraph.getNode(String.valueOf(agentId)) == null)
-			visualWorkGraph.addNode(String.valueOf(agent.getAgentId()));
+        if (visualFriendFamilyGraph != null) {
+    		if (visualFriendFamilyGraph.getNode(String.valueOf(agentId)) == null)
+    			visualFriendFamilyGraph.addNode(String.valueOf(agent.getAgentId()));
+    		visualFriendFamilyGraph.getNode(String.valueOf(agent.getAgentId()))
+    				.addAttribute("ui.class", agent.getInterest().toString());
+        }
 
-		visualFriendFamilyGraph.getNode(String.valueOf(agent.getAgentId()))
-				.addAttribute("ui.class", agent.getInterest().toString());
+        if (visualWorkGraph != null) {
+            if (visualWorkGraph.getNode(String.valueOf(agentId)) == null)
+        		visualWorkGraph.addNode(String.valueOf(agent.getAgentId()));
+        }
 
 		// place the agent in the neighborhood
 		agent.placeInNeighborhood();

@@ -1,12 +1,3 @@
-Timestep	VariableName	EntityIdx	Value	Notes
-0	numOfSocialInteractions		0.0	
-288	numOfSocialInteractions		64.0	
-576	numOfSocialInteractions		8.0	
-864	numOfSocialInteractions		39.0	
-1152	numOfSocialInteractions		69.0	
-1440	numOfSocialInteractions		83.0	
-1728	numOfSocialInteractions		1.0	
-2016	numOfSocialInteractions		19.0	
-2304	numOfSocialInteractions		106.0	
-2592	numOfSocialInteractions		3.0	
-2880	numOfSocialInteractions		35.0	
+version https://git-lfs.github.com/spec/v1
+oid sha256:f4dbcbd79553e3fa85708586e3ef0a2cf8bd18a6529f2b734253ac9f3fa9500f
+size 453
