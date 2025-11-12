@@ -1,0 +1,44 @@
+[INFO] pol.WorldModel initPlaces - Number of neighborhoods: 1
+[INFO] pol.WorldModel initPlaces - Neighborhood #0
+[INFO] pol.WorldModel initPlaces - -------Buildings----------
+[INFO] pol.WorldModel initPlaces - Total number of buildings: 37291
+[INFO] pol.WorldModel initPlaces - # of School Buildings needed: 1
+[INFO] pol.WorldModel initPlaces - # of Residential Buildings needed: 24860
+[INFO] pol.WorldModel initPlaces - # of Commercial Buildings needed: 12430
+[INFO] pol.WorldModel initPlaces - --------Units---------
+[INFO] pol.WorldModel initPlaces - # of Apartments Needed: 8
+[INFO] pol.WorldModel initPlaces - # of Schools Needed: 1
+[INFO] pol.WorldModel initPlaces - # of Pubs Needed: 1
+[INFO] pol.WorldModel initPlaces - # of Workplace Needed: 1
+[INFO] pol.WorldModel initPlaces - # of Restaurant Needed: 1
+[INFO] pol.WorldModel addHumanAgents - Total number of agents: 5
+[INFO] pol.WorldModel addAgent - Agent #0 added.
+[INFO] pol.WorldModel addAgent - Agent #1 added.
+[INFO] pol.WorldModel addAgent - Agent #2 added.
+[INFO] pol.WorldModel addAgent - Agent #3 added.
+[INFO] pol.WorldModel addAgent - Agent #4 added.
+[INFO] pol.WorldModel addHumanAgents - Human agents are added.
+[INFO] pol.utils.DateTimeUtil logTimeSpent - Agent population create/initialize time: 51.0 ms
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #1 Tue @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #1 Tue @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #2 Wed @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #2 Wed @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #3 Thu @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #3 Thu @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #4 Fri @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #4 Fri @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #5 Sat @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #5 Sat @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #6 Sun @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #6 Sun @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #7 Mon @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #7 Mon @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #8 Tue @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #8 Tue @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #9 Wed @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #9 Wed @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #10 Thu @ 00:00
+[INFO] pol.WorldModel eveningRoutine - Evening routine:Day #10 Thu @ 19:00
+[INFO] pol.WorldModel nightlyRoutine - Night routine:Day #11 Fri @ 00:00
+[INFO] pol.WorldModel finish - Social network graph saved.
+[INFO] pol.utils.DateTimeUtil logTimeSpent - Total simulation time: 3.55 s

@@ -1,12 +1,12 @@
 Timestep	VariableName	EntityIdx	Value	Notes
 0	pubVisitPerAgent		0.0	
-288	pubVisitPerAgent		4.7	
-576	pubVisitPerAgent		2.1	
-864	pubVisitPerAgent		2.8	
-1152	pubVisitPerAgent		3.9	
-1440	pubVisitPerAgent		4.6	
-1728	pubVisitPerAgent		0.8	
-2016	pubVisitPerAgent		1.4	
-2304	pubVisitPerAgent		3.5	
-2592	pubVisitPerAgent		0.3	
-2880	pubVisitPerAgent		2.3	
+288	pubVisitPerAgent		5.1074	
+576	pubVisitPerAgent		3.936	
+864	pubVisitPerAgent		3.6464	
+1152	pubVisitPerAgent		3.4332	
+1440	pubVisitPerAgent		4.8342	
+1728	pubVisitPerAgent		4.1136	
+2016	pubVisitPerAgent		2.484	
+2304	pubVisitPerAgent		2.5114	
+2592	pubVisitPerAgent		2.441	
+2880	pubVisitPerAgent		2.2882	
