@@ -19,7 +19,7 @@ import geopandas as gpd
 import os
 from typing import Dict, List, Tuple, Optional, Set
 
-from nomad.map_utils import blocks_to_mercator, mercator_to_blocks
+from map_utils import blocks_to_mercator, mercator_to_blocks
 
 # =============================================================================
 # STREET CLASS

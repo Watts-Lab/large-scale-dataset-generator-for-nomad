@@ -32,107 +32,14 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
-import numpy.random as npr
 import argparse
 import sys
+import boto3
 from pathlib import Path
 from datetime import datetime
 
-
-def generate_ping_times(t0: int,
-                        t_end: int,
-                        *,
-                        beta_start: float | None = None,
-                        beta_durations: float | None = None,
-                        beta_ping: float = 5,
-                        seed: int | None = None,
-                        return_bursts: bool = False,
-                        tz=None):
-    """Generate absolute ping timestamps (seconds) within [t0, t_end].
-
-    If return_bursts is True, also returns a list of (start_time, end_time)
-    for bursts that produced at least one ping. If tz is provided, start/end
-    are timezone-aware pandas Timestamps; otherwise they are Unix seconds (int).
-    """
-    rng = npr.default_rng(seed)
-
-    # convert minutes→seconds
-    beta_ping_s = beta_ping * 60
-    beta_start_s = beta_start * 60 if beta_start is not None else None
-    beta_dur_s = beta_durations * 60 if beta_durations is not None else None
-
-    if beta_start_s is None and beta_dur_s is None:
-        burst_start_points = np.array([0.0])
-        burst_end_points = np.array([t_end - t0], dtype=float)
-    else:
-        est_n = int(3 * (t_end - t0) / beta_start_s) + 10
-        inter_arrival_times = rng.exponential(scale=beta_start_s, size=est_n)
-        burst_start_points = np.cumsum(inter_arrival_times)
-        burst_start_points = burst_start_points[burst_start_points < (t_end - t0)]
-        burst_durations = rng.exponential(scale=beta_dur_s, size=burst_start_points.size)
-        burst_end_points = burst_start_points + burst_durations
-        if burst_end_points.size > 0:
-            burst_end_points[:-1] = np.minimum(burst_end_points[:-1], burst_start_points[1:])
-            burst_end_points[-1] = min(burst_end_points[-1], t_end - t0)
-
-    ping_times_chunks: list[np.ndarray] = []
-    bursts_out = [] if return_bursts else None
-    for start, end in zip(burst_start_points, burst_end_points):
-        dur = end - start
-        if dur <= 0:
-            continue
-        est_pings = int(3 * dur / beta_ping_s) + 10
-        ping_intervals = rng.exponential(scale=beta_ping_s, size=est_pings)
-        times_rel = np.cumsum(ping_intervals)
-        times_rel = times_rel[times_rel < dur]
-        if times_rel.size:
-            ping_times_chunks.append(t0 + start + times_rel)
-            if return_bursts:
-                if tz is not None:
-                    sdt = pd.to_datetime(t0 + start, unit='s', utc=True).tz_convert(tz)
-                    edt = pd.to_datetime(t0 + end, unit='s', utc=True).tz_convert(tz)
-                else:
-                    sdt = int(t0 + start)
-                    edt = int(t0 + end)
-                bursts_out.append([sdt, edt])
-
-    if not ping_times_chunks:
-        if return_bursts:
-            return np.array([], dtype=int), []
-        return np.array([], dtype=int)
-    ping = np.concatenate(ping_times_chunks).astype(int)
-    if return_bursts:
-        return ping, bursts_out
-    return ping
-
-def thin_traj_by_times(traj: pd.DataFrame,
-                       ping_times: np.ndarray,
-                       *,
-                       deduplicate: bool = True) -> pd.DataFrame:
-    """Apply ping_times to a dense traj via searchsorted thinning."""
-    if ping_times.size == 0:
-        return pd.DataFrame(columns=traj.columns)
-
-    traj_ts = traj['timestamp'].to_numpy()
-    tz = traj['datetime'].dt.tz
-
-    idx = np.searchsorted(traj_ts, ping_times, side='right') - 1
-    valid = idx >= 0
-    idx = idx[valid]
-    ping_times = ping_times[valid]
-
-    if deduplicate:
-        _, keep = np.unique(idx, return_index=True)
-        idx = idx[keep]
-        ping_times = ping_times[keep]
-
-    sampled_traj = traj.iloc[idx].copy()
-    sampled_traj['timestamp'] = ping_times
-    sampled_traj['datetime'] = (
-        pd.to_datetime(ping_times, unit='s', utc=True)
-          .tz_convert(tz)
-    )
-    return sampled_traj
+# Import thinning functions from traj_gen
+from traj_gen import generate_ping_times, thin_traj_by_times
 
 
 def sparsify_trajectories_parquet(
@@ -288,6 +195,41 @@ def sparsify_trajectories_parquet(
     print(f"Output written to: {output_path}")
 
 
+def upload_to_s3(local_dir, bucket_name, s3_prefix="", s3_profile=""):
+    """Upload parquet files to S3 bucket."""
+    
+    print(f"\nUploading parquet files to S3 bucket: {bucket_name}")
+    
+    # Initialize S3 client
+    session = boto3.Session(profile_name=s3_profile)
+    s3_client = session.client('s3')
+    
+    # Get all parquet files recursively
+    local_path = Path(local_dir)
+    parquet_files = list(local_path.rglob("*.parquet"))
+    
+    if not parquet_files:
+        print("No parquet files found to upload")
+        return
+    
+    print(f"Found {len(parquet_files)} parquet files to upload")
+    
+    uploaded_count = 0
+    for parquet_file in parquet_files:
+        # Calculate S3 key (relative path from local_dir)
+        relative_path = parquet_file.relative_to(local_path)
+        s3_key = f"{s3_prefix}/{relative_path}".strip('/')
+        
+        try:
+            print(f"Uploading: {parquet_file} -> s3://{bucket_name}/{s3_key}")
+            s3_client.upload_file(str(parquet_file), bucket_name, s3_key)
+            uploaded_count += 1
+        except Exception as e:
+            print(f"Error uploading {parquet_file}: {e}")
+    
+    print(f"Successfully uploaded {uploaded_count}/{len(parquet_files)} files to S3")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Sparsify trajectory parquet files using thin_traj_by_times',
@@ -302,11 +244,17 @@ Examples:
   
   # Custom burst pattern: bursts every hour, lasting 20 min, pings every 3 min
   python sparsify_parquet.py data/parquet/trajectories data/parquet/trajectories_sparse --beta-start 60 --beta-durations 20 --beta-ping 3
+  
+  # With S3 upload
+  python sparsify_parquet.py data/parquet/trajectories data/parquet/trajectories_sparse my-bucket trajectories_sparse
         """
     )
     
     parser.add_argument('input_dir', help='Input directory containing parquet files')
     parser.add_argument('output_dir', help='Output directory for sparsified parquet files')
+    parser.add_argument('s3_bucket', nargs='?', default=None, help='S3 bucket name (optional)')
+    parser.add_argument('s3_prefix', nargs='?', default='', help='S3 prefix/path (optional)')
+    parser.add_argument('s3_profile', nargs='?', default='', help='AWS profile name (optional)')
     parser.add_argument('--beta-start', type=float, default=120,
                         help='Mean time between bursts in minutes (default: 120)')
     parser.add_argument('--beta-durations', type=float, default=30,
@@ -338,6 +286,18 @@ Examples:
             seed=args.seed,
             deduplicate=not args.no_deduplicate
         )
+        
+        # Upload to S3 if bucket specified
+        if args.s3_bucket:
+            print("\n" + "=" * 60)
+            print("UPLOADING TO S3")
+            print("=" * 60)
+            trajectories_sparse_dir = Path(args.output_dir)
+            s3_prefix = f"{args.s3_prefix}/trajectories_sparse" if args.s3_prefix else "trajectories_sparse"
+            upload_to_s3(trajectories_sparse_dir, args.s3_bucket, s3_prefix, args.s3_profile)
+        else:
+            print("\nSkipping S3 upload (no bucket specified)")
+            
     except Exception as e:
         print(f"Error during sparsification: {e}")
         import traceback

@@ -4,7 +4,9 @@ if [ "$full_install" = "full" ]; then
     echo installing local dependencies
     pip install \
         geopandas==1.1.1 \
-        overpass==0.7
+        overpass==0.7 \
+        funkybob \
+        osmnx
     conda install -y pyarrow
     sudo yum update -y
     sudo yum install -y maven

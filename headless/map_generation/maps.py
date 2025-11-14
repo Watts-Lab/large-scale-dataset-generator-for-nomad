@@ -1,0 +1,11 @@
+import utils.pqgis as pqgis
+
+if __name__ == '__main__':
+    
+    # bounding_box = [ -93.37271616619313, 44.87995237885596, -93.18917592484306, 45.065984365649186]
+    bounding_box = [-75.19747721789525, 39.931392279878246, -75.14652246706544, 39.96336810441389]
+    output_folder = '/run/user/1000/maps/philadelphia'
+
+    pqgis.generate_map(bounding_box, output_folder, new_map=True)
+
+    print('Map generated successfully!')

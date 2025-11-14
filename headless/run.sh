@@ -8,7 +8,7 @@ LOGS_DIR="${RUN_DIR}/logs"
 PARQUET_DIR="${RUN_DIR}/parquet"
 mkdir -p "$LOGS_DIR" "$PARQUET_DIR"
 
-java -Dpol.gui=false -Djava.awt.headless=true -Dlog4j2.configurationFactory=pol.log.CustomConfigurationFactory -Dlog.rootDirectory="$RUN_DIR" -Dsimulation.test=all -jar ../jar/pol.jar -configuration "$MERGED_CONFIG" -until 2880
+java -Dpol.gui=false -Djava.awt.headless=true -Dlog4j2.configurationFactory=pol.log.CustomConfigurationFactory -Dlog.rootDirectory="$RUN_DIR" -Dsimulation.test=all -jar ../jar/pol.jar -configuration "$MERGED_CONFIG" -until 288
 
 python3 ../src/main/python/code/data_generation/integrate.py /home/ec2-user/SageMaker/large-scale-dataset-generator-for-nomad/headless/$LOGS_DIR AgentStateTable /home/ec2-user/SageMaker/large-scale-dataset-generator-for-nomad/headless/$LOGS_DIR/trajectories.tsv
 
