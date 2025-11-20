@@ -4,7 +4,6 @@ import os
 import sys
 import subprocess
 import pandas
-import test.file as test_file
 
 def get_sub_dirs(path):
     path = get_absolute_path(path)
@@ -29,7 +28,7 @@ def integrate_log_files(log_dir, file_prefix, appended_file, command='cat',remov
             appended_file = append(log_file, appended_file, command=command)
             print(f"Appended {log_file} to {appended_file}")
     
-    test_file.check_sorted_column(appended_file, time_column=1)
+    check_sorted_column(appended_file, time_column=1)
     if remove_original:
         for log_file in log_files:
             remove(log_file)
@@ -425,3 +424,14 @@ def is_match(file_path, file_name_pattern):
         return True
     # print(f"{file_name_pattern} is not in {file_path}")
     return False
+
+def check_sorted_column(file_path, time_column=0):
+    data = get_dataframe(file_path,sample=20000000)
+    column = data.iloc[:, time_column]
+    column = column.dropna()
+    print(column.head())
+    result = True
+    result = column == sorted(column)
+    result = all(result == True)
+    print(f"Column {time_column} is sorted: {result}")
+    return result

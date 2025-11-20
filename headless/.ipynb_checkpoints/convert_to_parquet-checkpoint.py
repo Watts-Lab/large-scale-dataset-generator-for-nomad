@@ -16,19 +16,20 @@ import sys
 import boto3
 from datetime import datetime
 from pathlib import Path
+from shapely import wkt
 
 def parse_point_geometry(geometry_str):
-    """Parse POINT (x y) string and return x, y coordinates."""
     if pd.isna(geometry_str) or geometry_str == '':
         return None, None
     
-    # Extract coordinates from POINT (x y) format
-    match = re.search(r'POINT\s*\(\s*([\d.-]+)\s+([\d.-]+)\s*\)', str(geometry_str))
-    if match:
-        x = float(match.group(1))
-        y = float(match.group(2))
-        return x, y
-    else:
+    try:
+        # Parse WKT string to shapely geometry
+        geom = wkt.loads(str(geometry_str))
+        if geom.is_empty:
+            return None, None
+        # Extract x, y from point geometry
+        return geom.x, geom.y
+    except Exception:
         return None, None
 
 def convert_travel_journal_to_parquet(csv_path, output_dir):
