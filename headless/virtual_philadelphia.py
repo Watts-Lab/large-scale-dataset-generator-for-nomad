@@ -55,6 +55,22 @@ from sparsify_parquet import sparsify_trajectories_parquet
 from generate_poi_table import generate_poi_table
 
 # %% [markdown]
+# ### generate run ID and create directory structure
+
+# %%
+RUN_DIR = "geolife_plus_phl"
+LOGS_DIR = os.path.join(RUN_DIR, "logs")
+PARQUET_DIR = os.path.join(RUN_DIR, "parquet")
+
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(PARQUET_DIR, exist_ok=True)
+
+# print("RUN_ID:", RUN_ID)
+print("RUN_DIR:", RUN_DIR)
+print("LOGS_DIR:", LOGS_DIR)
+print("PARQUET_DIR:", PARQUET_DIR)
+
+# %% [markdown]
 # ### Set S3 config here (enter AWS profile name where it says s3_profile)
 
 # %%
@@ -78,22 +94,6 @@ pqgis.generate_map(bounding_box, output_folder, new_map=True)
 # %%
 # # copy map to local directory
 shutil.copytree('/run/user/1000/maps/philadelphia', 'maps/philadelphia', dirs_exist_ok=True)
-
-# %% [markdown]
-# ### generate run ID and create directory structure
-
-# %%
-RUN_DIR = "geolife_plus_phl"
-LOGS_DIR = os.path.join(RUN_DIR, "logs")
-PARQUET_DIR = os.path.join(RUN_DIR, "parquet")
-
-os.makedirs(LOGS_DIR, exist_ok=True)
-os.makedirs(PARQUET_DIR, exist_ok=True)
-
-# print("RUN_ID:", RUN_ID)
-print("RUN_DIR:", RUN_DIR)
-print("LOGS_DIR:", LOGS_DIR)
-print("PARQUET_DIR:", PARQUET_DIR)
 
 
 # %% [markdown]
@@ -132,7 +132,7 @@ merge_properties("../parameters.properties", "modified.properties", MERGED_CONFI
 
 # %%
 # SET LENGTH OF SIMULATION = simulation_time * time step (default = 5 min, multiply 288 by number of days)
-simulation_time = "8640"
+simulation_time = "105120"
 
 cmd = [
     "java",
@@ -287,3 +287,5 @@ except Exception as e:
     print(f"Error: {e}")
     import traceback
     traceback.print_exc()
+
+# %%

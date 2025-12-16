@@ -32,6 +32,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
+import numpy.random as npr
 import argparse
 import sys
 import boto3
@@ -39,7 +40,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Import thinning functions from traj_gen
-from traj_gen import generate_ping_times, thin_traj_by_times
+from traj_gen import generate_ping_times, thin_traj_by_times, _sample_horizontal_noise
 
 
 def sparsify_trajectories_parquet(
@@ -49,8 +50,10 @@ def sparsify_trajectories_parquet(
     beta_durations=None,
     beta_ping=5,
     uniform_minutes=None,
+    output_bursts=False,
     seed=42,
-    deduplicate=True
+    deduplicate=True,
+    ha=3/4
 ):
     """
     Sparsify trajectory parquet files using thin_traj_by_times.
@@ -88,14 +91,14 @@ def sparsify_trajectories_parquet(
     
     print(f"Found {len(parquet_files)} parquet file(s) to sparsify")
     print(f"Sparsification parameters:")
-    if uniform_minutes:
+    if uniform_minutes is not None:
         print(f"  Mode: Uniform sampling every {uniform_minutes} minutes")
     else:
         print(f"  Mode: Burst pattern")
         print(f"    beta_start: {beta_start} minutes (time between bursts)")
         print(f"    beta_durations: {beta_durations} minutes (burst duration)")
         print(f"    beta_ping: {beta_ping} minutes (time between pings)")
-    print(f"  seed: {seed}")
+    print(f"  seed: {seed} (base seed, per-user seeds will be derived)")
     print(f"  deduplicate: {deduplicate}")
     print()
     
@@ -121,7 +124,8 @@ def sparsify_trajectories_parquet(
         
         # Process each user separately (thinning is per-user)
         sparse_dfs = []
-        
+
+        i = 0
         for user_id in df['user_id'].unique():
             user_traj = df[df['user_id'] == user_id].copy()
             user_traj = user_traj.sort_values('timestamp').reset_index(drop=True)
@@ -133,10 +137,28 @@ def sparsify_trajectories_parquet(
             t0 = int(user_traj['timestamp'].iloc[0])
             t_end = int(user_traj['timestamp'].iloc[-1])
             
+            # Create per-user seed by hashing user_id with base seed
+            # This ensures different but reproducible patterns per user
+            user_seed = seed + hash(str(user_id)) % (2**31)
+            
             # Generate ping times
-            if uniform_minutes:
-                # Uniform sampling
-                ping_times = np.arange(t0, t_end, uniform_minutes * 60, dtype=int)
+            tz = user_traj['datetime'].dt.tz
+            
+            # Handle uniform sampling mode
+            if uniform_minutes is not None:
+                # Uniform sampling: create ping times at regular intervals
+                interval_seconds = uniform_minutes * 60
+                ping_times = np.arange(t0, t_end, interval_seconds, dtype=int)
+            elif output_bursts:
+                ping_times = generate_ping_times(
+                    t0, t_end,
+                    beta_start=beta_start,
+                    beta_durations=beta_durations,
+                    beta_ping=beta_ping,
+                    seed=i,  # Use per-user seed
+                    return_bursts=True,
+                    tz=tz
+                )
             else:
                 # Burst pattern using generate_ping_times
                 ping_times = generate_ping_times(
@@ -144,7 +166,7 @@ def sparsify_trajectories_parquet(
                     beta_start=beta_start,
                     beta_durations=beta_durations,
                     beta_ping=beta_ping,
-                    seed=seed
+                    seed=i  # Use per-user seed
                 )
             
             if len(ping_times) == 0:
@@ -152,9 +174,17 @@ def sparsify_trajectories_parquet(
             
             # Thin trajectory
             sparse_user_traj = thin_traj_by_times(user_traj, ping_times, deduplicate=deduplicate)
+
+            # add horizontal noise using per-user seed
+            rng = npr.default_rng(i)
+            n = len(sparse_user_traj)
+            ha_realized, noise = _sample_horizontal_noise(n, ha=ha, rng=rng)
+            sparse_user_traj['ha'] = ha_realized
+            sparse_user_traj[['x', 'y']] += noise
             
             if not sparse_user_traj.empty:
                 sparse_dfs.append(sparse_user_traj)
+            i += 1
         
         if not sparse_dfs:
             print(f"  No data after sparsification, skipping")

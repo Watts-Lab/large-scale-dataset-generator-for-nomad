@@ -155,6 +155,11 @@ public class WorldModel extends SimState {
 	private long simulationSeed;
 	private int numOfAbondenedAgents = 0;
 	private int numOfDeadAgents = 0;
+	
+	// Performance tracking: wall-clock time per day per agent
+	private Map<Integer, Long> dayStartTimes = new TreeMap<>();
+	private Map<Integer, Map<Long, Long>> agentProcessingTimes = new TreeMap<>();
+	private int lastTrackedDay = -1;
 
 	// geography components/settings
 	public static final int WIDTH = 800;
@@ -212,15 +217,21 @@ public class WorldModel extends SimState {
 		logScheduler = new MasterScheduler<LogSchedule>();
 		eventScheduler = new MasterScheduler<EventSchedule>();
 		this.params = params;
+		System.out.println("[INIT] WorldModel construction starting with " + params.numOfAgents + " agents");
 		timeUtil.addEventTime(SimulationEvent.SimulationStart, new DateTime());
 		simulationSeed = seed;
+		System.out.println("[INIT] Loading map layers...");
 		spatialNetwork.loadMapLayers(params.maps, "walkways.shp",
 				"buildings.shp", "buildingUnits.shp");
+		System.out.println("[INIT] Map layers loaded. Initializing places...");
 		initPlaces();
+		System.out.println("[INIT] Places initialized. Setting up visualization graphs...");
         initVisualGraph();
+		System.out.println("[INIT] Aligning map layers...");
 		GeoUtils.alignMBRs(spatialNetwork.getAllLayers());
 		reservedLog = new ReservedLogChannels(this);
 		startDataCollectionForQoIs();
+		System.out.println("[INIT] WorldModel construction complete. Ready to start simulation.");
 	}
 
 	/**
@@ -230,6 +241,11 @@ public class WorldModel extends SimState {
 	public void start() {
 		timeUtil.addEventTime(SimulationEvent.AgentInitStart, new DateTime());
 		super.start();
+
+		// Initialize performance tracking
+		dayStartTimes.clear();
+		agentProcessingTimes.clear();
+		lastTrackedDay = -1;
 
 		agentLayer.clear(); // clear any existing agents from previous runs
 		addSchedulingAgents();
@@ -258,6 +274,8 @@ public class WorldModel extends SimState {
 					visualFriendFamilyGraph.stepBegins(state.schedule.getSteps());
 					visualWorkGraph.stepBegins(state.schedule.getSteps());
 				}
+				// Track performance per day per agent
+				trackPerformancePerDayPerAgent();
 			}
 		}, STEP_BEGIN_PRIORITY, 1);
 
@@ -291,6 +309,10 @@ public class WorldModel extends SimState {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+		// Log performance summary before final timing
+		logPerformanceSummary();
+		
 		timeUtil.addEventTime(SimulationEvent.SimulationEnd, new DateTime());
 		timeUtil.logTimeSpent(SimulationEvent.SimulationStart,
 				SimulationEvent.SimulationEnd, "Total simulation time");
@@ -384,10 +406,13 @@ public class WorldModel extends SimState {
 			neighborhoodComposition = new NeighborhoodComposition(random, params);
 			neighborhoodComposition.calculate(numOfAgentsPerNeighborhood.get(nId));
 
-			logger.info("Neighborhood #" + nId);
-			logger.info("-------Buildings----------");
-			logger.info("Total number of buildings: "
-					+ numberOfNeighborhoodBuildings);
+			// Only log per-neighborhood details for small simulations to avoid massive log overhead
+			if (params.numOfAgents < 1000) {
+				logger.info("Neighborhood #" + nId);
+				logger.info("-------Buildings----------");
+				logger.info("Total number of buildings: "
+						+ numberOfNeighborhoodBuildings);
+			}
 
 			int numberOfSchoolBuildings = neighborhoodComposition
 					.getNumberOfSchools();
@@ -398,23 +423,29 @@ public class WorldModel extends SimState {
 			int numberOfCommercialBuildings = remainingBuildings
 					- numberOfResidentialBuildings;
 
-			logger.info("# of School Buildings needed: "
-					+ neighborhoodComposition.getNumberOfSchools());
-			logger.info("# of Residential Buildings needed: "
-					+ numberOfResidentialBuildings);
-			logger.info("# of Commercial Buildings needed: "
-					+ numberOfCommercialBuildings);
-			logger.info("--------Units---------");
-			logger.info("# of Apartments Needed: "
-					+ neighborhoodComposition.getNumberOfApartments());
-			logger.info("# of Schools Needed: "
-					+ neighborhoodComposition.getNumberOfSchools());
-			logger.info("# of Pubs Needed: "
-					+ neighborhoodComposition.getNumberOfPubs());
-			logger.info("# of Workplace Needed: "
-					+ neighborhoodComposition.getNumberOfWorkplaces());
-			logger.info("# of Restaurant Needed: "
-					+ neighborhoodComposition.getNumberOfRestaurants());
+			// Only log detailed unit counts for small simulations
+			if (params.numOfAgents < 1000) {
+				logger.info("# of School Buildings needed: "
+						+ neighborhoodComposition.getNumberOfSchools());
+				logger.info("# of Residential Buildings needed: "
+						+ numberOfResidentialBuildings);
+				logger.info("# of Commercial Buildings needed: "
+						+ numberOfCommercialBuildings);
+				logger.info("--------Units---------");
+				logger.info("# of Apartments Needed: "
+						+ neighborhoodComposition.getNumberOfApartments());
+				logger.info("# of Schools Needed: "
+						+ neighborhoodComposition.getNumberOfSchools());
+				logger.info("# of Pubs Needed: "
+						+ neighborhoodComposition.getNumberOfPubs());
+				logger.info("# of Workplace Needed: "
+						+ neighborhoodComposition.getNumberOfWorkplaces());
+				logger.info("# of Restaurant Needed: "
+						+ neighborhoodComposition.getNumberOfRestaurants());
+			} else if (nId % 50 == 0) {
+				// For large simulations, log progress every 50 neighborhoods
+				System.out.println("[INIT] Processing neighborhood #" + nId + "...");
+			}
 
 			// dedicate building(s) for schools and add a classroom per school
 			int numOfSchools = neighborhoodComposition.getNumberOfSchools() == 0 ? 1
@@ -593,6 +624,17 @@ public class WorldModel extends SimState {
 				}
 			}
 		}
+		
+		// Log summary of what was created
+		logger.info("Place initialization complete:");
+		logger.info("  - Neighborhoods: " + neighborhoodBuildingMap.size());
+		logger.info("  - Buildings: " + buildings.size());
+		logger.info("  - Apartments: " + apartments.size());
+		logger.info("  - Classrooms: " + classrooms.size());
+		logger.info("  - Workplaces: " + workplaces.size());
+		logger.info("  - Jobs: " + jobs.size());
+		logger.info("  - Restaurants: " + restaurants.size());
+		logger.info("  - Pubs: " + pubs.size());
 	}
 
 	private void initVisualGraph() {
@@ -890,7 +932,10 @@ public class WorldModel extends SimState {
 		logger.info("Total number of agents: " + params.numOfAgents);
 
 		for (int nId : this.neighborhoodBuildingMap.keySet()) {
-			System.out.println("Number of agents in neighborhood #" + nId + ": " + numOfAgentsPerNeighborhood.get(nId));
+			// Only print for smaller simulations to avoid console flooding
+			if (params.numOfAgents < 5000) {
+				System.out.println("Number of agents in neighborhood #" + nId + ": " + numOfAgentsPerNeighborhood.get(nId));
+			}
 
 			NeighborhoodComposition neighborhoodComposition = new NeighborhoodComposition(random, params);
 			neighborhoodComposition.calculate(numOfAgentsPerNeighborhood.get(nId));
@@ -915,6 +960,8 @@ public class WorldModel extends SimState {
 		}
 		// spatialNetwork.clearPrecomputedPaths();
 		logger.info("Human agents are added.");
+		logger.info("Total agents initialized: " + agents.size() + " agents across " + 
+				this.neighborhoodBuildingMap.size() + " neighborhoods");
 	}
 
 	private void addAgent(long agentId, int nId, boolean family, boolean kids,
@@ -969,7 +1016,15 @@ public class WorldModel extends SimState {
 
 		Stoppable stp = schedule.scheduleRepeating(agent);
 		agent.setStoppable(stp);
-		logger.info("Agent #" + agentId + " added.");
+		
+		// Only log individual agents for small simulations to avoid massive log overhead
+		if (params.numOfAgents < 1000) {
+			logger.info("Agent #" + agentId + " added.");
+		} else if (agentId % 1000 == 0) {
+			// For large simulations, only log every 1000th agent
+			logger.info("Progress: " + agentId + " / " + params.numOfAgents + " agents added (" + 
+						(agentId * 100 / params.numOfAgents) + "%)" );
+		}
 	}
 
 	/**
@@ -1844,5 +1899,102 @@ public class WorldModel extends SimState {
 	public void changeRandomGeneratorState(Double times) {
 		// This will change the seed of the random number generator
 		random.setSeed(times.longValue());
+	}
+
+	/**
+	 * Track wall-clock execution time per day per agent.
+	 * This method is called at each simulation step to measure performance.
+	 */
+	private void trackPerformancePerDayPerAgent() {
+		LocalDateTime currentSimTime = getSimulationTime();
+		int currentDay = currentSimTime.getDayOfYear();
+		
+		// Check if we've moved to a new day
+		if (currentDay != lastTrackedDay) {
+			long currentTimeMillis = System.currentTimeMillis();
+			
+			// If we had a previous day, calculate and log the time spent
+			if (lastTrackedDay != -1 && dayStartTimes.containsKey(lastTrackedDay)) {
+				long dayStartTime = dayStartTimes.get(lastTrackedDay);
+				long totalDayTime = currentTimeMillis - dayStartTime;
+				int numAgents = agents.size();
+				
+				if (numAgents > 0) {
+					double timePerAgent = totalDayTime / (double) numAgents;
+					
+					// Log the performance metrics
+					logger.info(String.format(
+						"Performance Day %d: Total wall-clock time = %d ms, " +
+						"Agents = %d, Time per agent = %.2f ms, " +
+						"Time per agent per simulated day = %.2f ms",
+						lastTrackedDay, totalDayTime, numAgents, timePerAgent, timePerAgent
+					));
+					
+					// Store detailed timing per agent if needed
+					Map<Long, Long> agentTimes = new TreeMap<>();
+					for (Long agentId : agents.keySet()) {
+						agentTimes.put(agentId, (long) timePerAgent);
+					}
+					agentProcessingTimes.put(lastTrackedDay, agentTimes);
+				}
+			}
+			
+			// Start tracking new day
+			dayStartTimes.put(currentDay, currentTimeMillis);
+			lastTrackedDay = currentDay;
+			
+			logger.info(String.format(
+				"Started tracking Day %d at simulation time %s with %d agents",
+				currentDay, currentSimTime.toString(), agents.size()
+			));
+		}
+	}
+	
+	/**
+	 * Log final performance summary when simulation finishes.
+	 */
+	private void logPerformanceSummary() {
+		// Handle the last day if tracking was in progress
+		if (lastTrackedDay != -1 && dayStartTimes.containsKey(lastTrackedDay)) {
+			long currentTimeMillis = System.currentTimeMillis();
+			long dayStartTime = dayStartTimes.get(lastTrackedDay);
+			long totalDayTime = currentTimeMillis - dayStartTime;
+			int numAgents = agents.size();
+			
+			if (numAgents > 0) {
+				double timePerAgent = totalDayTime / (double) numAgents;
+				logger.info(String.format(
+					"Performance Day %d (final): Total wall-clock time = %d ms, " +
+					"Agents = %d, Time per agent = %.2f ms",
+					lastTrackedDay, totalDayTime, numAgents, timePerAgent
+				));
+			}
+		}
+		
+		// Log overall summary
+		logger.info("========== Performance Summary ==========");
+		long totalSimulationTime = 0;
+		for (Map.Entry<Integer, Long> entry : dayStartTimes.entrySet()) {
+			Integer day = entry.getKey();
+			if (agentProcessingTimes.containsKey(day)) {
+				Map<Long, Long> agentTimes = agentProcessingTimes.get(day);
+				long dayTotal = agentTimes.values().stream().mapToLong(Long::longValue).sum();
+				logger.info(String.format("  Day %d: %d agents, total time: %d ms", 
+					day, agentTimes.size(), dayTotal));
+				totalSimulationTime += dayTotal;
+			}
+		}
+		
+		int totalDays = agentProcessingTimes.size();
+		int totalAgents = agents.size();
+		if (totalDays > 0 && totalAgents > 0) {
+			double avgTimePerAgentPerDay = totalSimulationTime / (double) (totalDays * totalAgents);
+			logger.info(String.format(
+				"Overall: %d simulated days, %d agents, " +
+				"Average time per agent per day: %.2f ms",
+				totalDays, totalAgents, avgTimePerAgentPerDay
+			));
+		}
+		logger.info("=========================================");
 	}
 }

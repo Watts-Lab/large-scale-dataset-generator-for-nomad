@@ -9,6 +9,7 @@ Uploads to S3 bucket after conversion.
 
 import pandas as pd
 import pyarrow as pa
+import numpy.random as npr
 import pyarrow.parquet as pq
 import re
 import os
@@ -45,8 +46,7 @@ def convert_travel_journal_to_parquet(csv_path, output_dir):
     # Parse geometry to extract x, y coordinates
     print("Parsing geometry coordinates...")
     coords = df['venueGeometry'].apply(parse_point_geometry)
-    df['x'] = [coord[0] for coord in coords]
-    df['y'] = [coord[1] for coord in coords]
+    df['x'], df['y'] = zip(*coords)
     
     # Convert time columns to datetime
     df['checkInTime'] = pd.to_datetime(df['checkInTime'])
@@ -128,8 +128,7 @@ def convert_trajectories_to_parquet(tsv_path, output_dir):
     # Parse geometry to extract x, y coordinates
     print("Parsing geometry coordinates...")
     coords = df['location'].apply(parse_point_geometry)
-    df['x'] = [coord[0] for coord in coords]
-    df['y'] = [coord[1] for coord in coords]
+    df['x'], df['y'] = zip(*coords)
     
     # Convert time column to datetime
     df['simulationTime'] = pd.to_datetime(df['simulationTime'], format="%Y-%m-%dT%H:%M:%S.%f", errors='coerce')

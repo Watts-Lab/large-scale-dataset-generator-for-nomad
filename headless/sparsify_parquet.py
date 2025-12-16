@@ -32,6 +32,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
+import numpy.random as npr
 import argparse
 import sys
 import boto3
@@ -39,7 +40,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Import thinning functions from traj_gen
-from traj_gen import generate_ping_times, thin_traj_by_times
+from traj_gen import generate_ping_times, thin_traj_by_times, _sample_horizontal_noise
 
 
 def sparsify_trajectories_parquet(
@@ -49,8 +50,10 @@ def sparsify_trajectories_parquet(
     beta_durations=None,
     beta_ping=5,
     uniform_minutes=None,
+    output_bursts=False,
     seed=42,
-    deduplicate=True
+    deduplicate=True,
+    ha=3/4
 ):
     """
     Sparsify trajectory parquet files using thin_traj_by_times.
@@ -79,110 +82,130 @@ def sparsify_trajectories_parquet(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Find all parquet files
-    parquet_files = sorted(input_path.rglob("*.parquet"))
-    
-    if not parquet_files:
-        print(f"No parquet files found in {input_dir}")
-        return
-    
-    print(f"Found {len(parquet_files)} parquet file(s) to sparsify")
     print(f"Sparsification parameters:")
-    if uniform_minutes:
+    if uniform_minutes is not None:
         print(f"  Mode: Uniform sampling every {uniform_minutes} minutes")
     else:
         print(f"  Mode: Burst pattern")
         print(f"    beta_start: {beta_start} minutes (time between bursts)")
         print(f"    beta_durations: {beta_durations} minutes (burst duration)")
         print(f"    beta_ping: {beta_ping} minutes (time between pings)")
-    print(f"  seed: {seed}")
+    print(f"  seed: {seed} (base seed, per-user seeds will be sequential)")
     print(f"  deduplicate: {deduplicate}")
     print()
     
-    total_input_records = 0
-    total_output_records = 0
+    # Read all parquet files at once
+    print(f"Reading all parquet files from {input_path}...")
+    df = pd.read_parquet(input_path)
     
-    # Process each partition separately
-    for parquet_file in parquet_files:
-        print(f"Processing: {parquet_file.relative_to(input_path)}")
+    if df.empty:
+        print(f"No data found in {input_dir}")
+        return
+    
+    total_input_records = len(df)
+    print(f"Loaded {total_input_records} records from all partitions")
+    
+    # Convert timestamp back to datetime for traj_gen compatibility
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
+    
+    # Get all unique users and assign sequential seeds
+    all_user_ids = sorted(df['user_id'].unique())
+    print(f"Processing {len(all_user_ids)} unique users...")
+    
+    # Process each user separately (thinning is per-user)
+    sparse_dfs = []
+    
+    for i, user_id in enumerate(all_user_ids):
         
-        # Read parquet file
-        table = pq.read_table(parquet_file)
-        df = table.to_pandas()
+        user_traj = df[df['user_id'] == user_id].copy()
+        user_traj = user_traj.sort_values('timestamp').reset_index(drop=True)
         
-        if df.empty:
-            print(f"  Skipping empty file")
+        if len(user_traj) == 0:
             continue
         
-        total_input_records += len(df)
+        # Get time window for this user
+        t0 = int(user_traj['timestamp'].iloc[0])
+        t_end = int(user_traj['timestamp'].iloc[-1])
         
-        # Convert timestamp back to datetime for traj_gen compatibility
-        df['datetime'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
+        # Use sequential seed for each user
+        user_seed = i
         
-        # Process each user separately (thinning is per-user)
-        sparse_dfs = []
+        # Generate ping times
+        tz = user_traj['datetime'].dt.tz
         
-        for user_id in df['user_id'].unique():
-            user_traj = df[df['user_id'] == user_id].copy()
-            user_traj = user_traj.sort_values('timestamp').reset_index(drop=True)
-            
-            if len(user_traj) == 0:
-                continue
-            
-            # Get time window for this user
-            t0 = int(user_traj['timestamp'].iloc[0])
-            t_end = int(user_traj['timestamp'].iloc[-1])
-            
-            # Generate ping times
-            if uniform_minutes:
-                # Uniform sampling
-                ping_times = np.arange(t0, t_end, uniform_minutes * 60, dtype=int)
-            else:
-                # Burst pattern using generate_ping_times
-                ping_times = generate_ping_times(
-                    t0, t_end,
-                    beta_start=beta_start,
-                    beta_durations=beta_durations,
-                    beta_ping=beta_ping,
-                    seed=seed
-                )
-            
-            if len(ping_times) == 0:
-                continue
-            
-            # Thin trajectory
-            sparse_user_traj = thin_traj_by_times(user_traj, ping_times, deduplicate=deduplicate)
-            
-            if not sparse_user_traj.empty:
-                sparse_dfs.append(sparse_user_traj)
+        # Handle uniform sampling mode
+        if uniform_minutes is not None:
+            # Uniform sampling: create ping times at regular intervals
+            interval_seconds = uniform_minutes * 60
+            ping_times = np.arange(t0, t_end, interval_seconds, dtype=int)
+        elif output_bursts:
+            ping_times = generate_ping_times(
+                t0, t_end,
+                beta_start=beta_start,
+                beta_durations=beta_durations,
+                beta_ping=beta_ping,
+                seed=user_seed,
+                return_bursts=True,
+                tz=tz
+            )
+        else:
+            # Burst pattern using generate_ping_times
+            ping_times = generate_ping_times(
+                t0, t_end,
+                beta_start=beta_start,
+                beta_durations=beta_durations,
+                beta_ping=beta_ping,
+                seed=user_seed
+            )
         
-        if not sparse_dfs:
-            print(f"  No data after sparsification, skipping")
+        if len(ping_times) == 0:
             continue
         
-        # Combine all users
-        sparse_df = pd.concat(sparse_dfs, ignore_index=True)
+        # Thin trajectory
+        sparse_user_traj = thin_traj_by_times(user_traj, ping_times, deduplicate=deduplicate)
+
+        # add horizontal noise using per-user seed
+        rng = npr.default_rng(user_seed)
+        n = len(sparse_user_traj)
+        ha_realized, noise = _sample_horizontal_noise(n, ha=ha, rng=rng)
+        sparse_user_traj['ha'] = ha_realized
+        sparse_user_traj[['x', 'y']] += noise
         
-        # Remove datetime and date columns (datetime was temporary, date comes from partition path)
-        cols_to_drop = [col for col in ['datetime', 'date'] if col in sparse_df.columns]
-        if cols_to_drop:
-            sparse_df = sparse_df.drop(columns=cols_to_drop)
-        
-        total_output_records += len(sparse_df)
-        
-        # Create output partition directory matching input structure
-        relative_path = parquet_file.relative_to(input_path)
-        output_partition_dir = output_path / relative_path.parent
-        output_partition_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Write sparsified parquet file
-        output_file = output_partition_dir / parquet_file.name
-        table_out = pa.Table.from_pandas(sparse_df)
-        pq.write_table(table_out, output_file)
-        
-        reduction = (1 - len(sparse_df) / len(df)) * 100
-        print(f"  Input: {len(df)} records, Output: {len(sparse_df)} records ({reduction:.1f}% reduction)")
-        print(f"  Wrote: {output_file.relative_to(output_path)}")
+        if not sparse_user_traj.empty:
+            sparse_dfs.append(sparse_user_traj)
+    
+    print(f"  Processed {len(all_user_ids)}/{len(all_user_ids)} users.")
+    
+    if not sparse_dfs:
+        print(f"No data after sparsification")
+        return
+    
+    # Combine all users
+    print("Combining all sparsified trajectories...")
+    sparse_df = pd.concat(sparse_dfs, ignore_index=True)
+    
+    # Remove datetime column (temporary column)
+    if 'datetime' in sparse_df.columns:
+        sparse_df = sparse_df.drop(columns=['datetime'])
+    
+    total_output_records = len(sparse_df)
+    
+    # Write output as partitioned parquet (by date if available, or as single file)
+    print("Writing output parquet files...")
+    if 'date' in sparse_df.columns:
+        # Write partitioned by date
+        sparse_df.to_parquet(
+            output_path,
+            partition_cols=['date'],
+            engine='pyarrow',
+            index=False
+        )
+        print(f"  Wrote partitioned parquet to {output_path}")
+    else:
+        # Write as single parquet file
+        output_file = output_path / "trajectories_sparse.parquet"
+        sparse_df.to_parquet(output_file, engine='pyarrow', index=False)
+        print(f"  Wrote {output_file}")
     
     print()
     print("=" * 60)
