@@ -57,8 +57,8 @@ def upload_to_s3(local_path, bucket_name, s3_prefix="", aws_profile="", skip_pro
     
     # Initialize S3 client
     if skip_profile:
-        session = boto3.Session(aws_access_key_id="AKIA2JTHRXSBUV353SU3",
-                                aws_secret_access_key="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",
+        session = boto3.Session(aws_access_key_id="",
+                                aws_secret_access_key="",
                                region_name="us-east-2")
     if not skip_profile and aws_profile:
         session = boto3.Session(profile_name=aws_profile)
