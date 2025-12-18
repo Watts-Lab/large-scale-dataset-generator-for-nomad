@@ -28,7 +28,7 @@ import boto3
 from pathlib import Path
 
 
-def upload_to_s3(local_path, bucket_name, s3_prefix="", aws_profile=""):
+def upload_to_s3(local_path, bucket_name, s3_prefix="", aws_profile="", skip_profile=False):
     """
     Upload a file or directory to S3 bucket.
     
@@ -56,10 +56,12 @@ def upload_to_s3(local_path, bucket_name, s3_prefix="", aws_profile=""):
         print(f"AWS profile: {aws_profile}")
     
     # Initialize S3 client
-    if aws_profile:
+    if skip_profile:
+        session = boto3.Session(aws_access_key_id="AKIA2JTHRXSBUV353SU3",
+                                aws_secret_access_key="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",
+                               region_name="us-east-2")
+    if not skip_profile and aws_profile:
         session = boto3.Session(profile_name=aws_profile)
-    else:
-        session = boto3.Session()
     
     s3_client = session.client('s3')
     
