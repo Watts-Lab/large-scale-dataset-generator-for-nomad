@@ -5,6 +5,9 @@ TravelJournal: user_id, x, y, start_time, end_time, venue_id, timestamp, duratio
 Trajectories: user_id, x, y, timestamp, step
 Partitioned by date in folders like: date=2025-07-01/part-0.parquet
 Uploads to S3 bucket after conversion.
+
+Supports incremental S3 uploads - upload each partition immediately after writing
+to avoid memory/disk issues with large datasets.
 """
 
 import pandas as pd
@@ -33,10 +36,30 @@ def parse_point_geometry(geometry_str):
     except Exception:
         return None, None
 
-def convert_travel_journal_to_parquet(csv_path, output_dir):
-    """Convert TravelJournal.csv to partitioned parquet files."""
+def convert_travel_journal_to_parquet(csv_path, output_dir, s3_uploader=None, delete_after_upload=False):
+    """
+    Convert TravelJournal.csv to partitioned parquet files.
+    
+    Parameters
+    ----------
+    csv_path : str
+        Path to TravelJournal.csv file
+    output_dir : str
+        Directory to write partitioned parquet files
+    s3_uploader : S3IncrementalUploader, optional
+        If provided, upload each partition to S3 immediately after writing
+    delete_after_upload : bool
+        If True and s3_uploader is provided, delete local files after upload
+    
+    Returns
+    -------
+    Path
+        Path to the output directory
+    """
     
     print(f"Reading TravelJournal.csv from: {csv_path}")
+    if s3_uploader:
+        print(f"  Incremental S3 upload enabled (delete_after_upload={delete_after_upload})")
     
     # Read the CSV file
     df = pd.read_csv(csv_path)
@@ -102,6 +125,18 @@ def convert_travel_journal_to_parquet(csv_path, output_dir):
         pq.write_table(table, parquet_file)
         
         print(f"  Wrote {len(group)} records to {parquet_file}")
+        
+        # Upload to S3 if uploader provided
+        if s3_uploader:
+            if delete_after_upload:
+                s3_uploader.upload_and_delete(parquet_file)
+                # Try to remove empty partition directory
+                try:
+                    partition_dir.rmdir()
+                except OSError:
+                    pass
+            else:
+                s3_uploader.upload_file(parquet_file)
     
     print(f"Conversion complete! Parquet files written to: {output_dir}")
     
@@ -115,10 +150,30 @@ def convert_travel_journal_to_parquet(csv_path, output_dir):
     
     return output_path
 
-def convert_trajectories_to_parquet(tsv_path, output_dir):
-    """Convert trajectories.tsv to partitioned parquet files."""
+def convert_trajectories_to_parquet(tsv_path, output_dir, s3_uploader=None, delete_after_upload=False):
+    """
+    Convert trajectories.tsv to partitioned parquet files.
+    
+    Parameters
+    ----------
+    tsv_path : str
+        Path to trajectories.tsv file
+    output_dir : str
+        Directory to write partitioned parquet files
+    s3_uploader : S3IncrementalUploader, optional
+        If provided, upload each partition to S3 immediately after writing
+    delete_after_upload : bool
+        If True and s3_uploader is provided, delete local files after upload
+    
+    Returns
+    -------
+    Path
+        Path to the output directory
+    """
     
     print(f"Reading trajectories.tsv from: {tsv_path}")
+    if s3_uploader:
+        print(f"  Incremental S3 upload enabled (delete_after_upload={delete_after_upload})")
     
     # Read the TSV file
     df = pd.read_csv(tsv_path, sep='\t', low_memory=False)
@@ -181,6 +236,18 @@ def convert_trajectories_to_parquet(tsv_path, output_dir):
         pq.write_table(table, parquet_file)
         
         print(f"  Wrote {len(group)} records to {parquet_file}")
+        
+        # Upload to S3 if uploader provided
+        if s3_uploader:
+            if delete_after_upload:
+                s3_uploader.upload_and_delete(parquet_file)
+                # Try to remove empty partition directory
+                try:
+                    partition_dir.rmdir()
+                except OSError:
+                    pass
+            else:
+                s3_uploader.upload_file(parquet_file)
     
     print(f"Conversion complete! Parquet files written to: {output_dir}")
     
@@ -193,6 +260,7 @@ def convert_trajectories_to_parquet(tsv_path, output_dir):
     print(f"Total steps: {output_df['step'].max()}")
     
     return output_path
+
 
 def upload_to_s3(local_dir, bucket_name, s3_prefix="", s3_profile=""):
     """Upload parquet files to S3 bucket."""

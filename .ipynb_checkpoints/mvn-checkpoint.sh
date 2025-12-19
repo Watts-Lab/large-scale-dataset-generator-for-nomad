@@ -6,7 +6,8 @@ if [ "$full_install" = "full" ]; then
         geopandas==1.1.1 \
         overpass==0.7 \
         funkybob \
-        osmnx
+        osmnx \
+        geopy
     conda install -y pyarrow
     sudo yum update -y
     sudo yum install -y maven
